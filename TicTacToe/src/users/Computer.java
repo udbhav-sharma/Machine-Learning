@@ -1,6 +1,8 @@
 package users;
+
 import java.util.ArrayList;
 
+import util.Log;
 import environment.Board;
 import environment.Game;
 import environment.Game.winner;
@@ -11,8 +13,8 @@ public class Computer extends Player {
 	private final double winScore = 100;
 	private final double lostScore = -100;
 	private final double drawScore = 0;
-	private final double u = 0.02; 			//learning rate
-	private ArrayList<Board> history;		//Board states history
+	private final double u = 0.01; 			//learning rate
+	private ArrayList<Board> history = null;
 	
 	public Computer(Game game, char move){
 		super(game,move);
@@ -26,55 +28,63 @@ public class Computer extends Player {
 		this.history = new ArrayList<Board>();
 	}
 	
-	public void reset(){
-		this.history.clear();
-	}
-	
 	public void chooseMove() {
-		Board board= this.game.getBoard();
+		Board board= this.game.getBoard().clone();
 		int n = board.getN();
-		char prevMove;
-		double maxScore=-1000000,tempScore;
-		boolean maxScoreFlag=true;
-		int u=0,v=0;
+		
+		double maxScore= Double.MAX_VALUE * ( -1),tempScore;
+		
+		int u=-1,v=-1;
 		
 		for(int i=0;i<n;i++){
 			for(int j=0; j<n; j++){
 				if(board.moveAllowed(i, j)){
-					prevMove = board.getState(i, j);
-					board.move(this.tag, i, j, Board.cross);
-					tempScore = getScore(board);
-					if(maxScoreFlag || tempScore > maxScore){
+					board.move(this.tag, i, j, this.move);
+					tempScore = this.getScore(this.getFeatures(board));
+					if(tempScore >= maxScore){
 						u=i;
 						v=j;
 						maxScore = tempScore;
-						maxScoreFlag = false;
 					}
-					board.hardMove(i,j,prevMove);
+					board.resetCell(i,j);
 				}
 			}
 		}
-		this.history.add(board.clone());
-		game.move(this.tag, u, v, this.move);
+		this.game.getBoard().move(this.tag, u, v, this.move);
+		this.history.add(this.game.getBoard().clone());
 	}
 	
-	public void onGameCompletition(){
-		this.history.add(this.game.getBoard().clone());
+	public void onGameCompletition(winner w){
 		
 		//Reevaluate Weights
 		double Vtrain;
+		ArrayList<TrainPair> trainingData = new ArrayList<TrainPair>();
+		int i;
 		
-		for(int i=this.history.size()-1;i>0;i--){
-			winner w =  this.game.getWinner(history.get(i));
-			if(w==winner.NOTCOMPLETED){
-				Vtrain = this.getScore(history.get(i));
-				this.updateWeights(history.get(i-1),Vtrain);
-			}
-			else{
-				Vtrain = this.getWinLostScore(w);
-				this.updateWeights(history.get(i),Vtrain);
-			}
+		for(i=0;i<this.history.size()-1;i++){
+			Vtrain = this.getScore(this.getFeatures(this.history.get(i+1)));
+			trainingData.add(new TrainPair(Vtrain,this.getFeatures(history.get(i))));
 		}
+		
+		Vtrain = this.getWinLostScore(w);
+		trainingData.add(new TrainPair(Vtrain, this.getFeatures(history.get(i))));
+		
+		this.updateWeights(trainingData);
+		this.clearHistory();
+	}
+	
+	public String toString(){
+		String output = super.toString();
+		
+		output += "\nWeights:\t";
+		for(int i=0;i<this.weight.length;i++)
+			output += this.weight[i]+", ";
+		
+		return output;
+	}
+
+	private void clearHistory(){
+		this.history.clear();
 	}
 	
 	private double getWinLostScore(winner w){
@@ -85,10 +95,8 @@ public class Computer extends Player {
 		return this.drawScore;
 	}
 	
-	private double getScore(Board board){
-		int features[];
+	private double getScore(int features[]){
 		double score = 0;
-		features = this.getFeatures(board);
 		
 		for(int i=0;i<7;i++) {
 			score+=this.weight[i]*features[i];
@@ -99,51 +107,30 @@ public class Computer extends Player {
 	
 	private int[] getFeatures(Board board){
 		int features[]=new int[7];
-		features[0]=1;
-		for(int i=1;i<7;i++)
+		for(int i=0;i<7;i++)
 			features[i]=0;
 		
 		int n=board.getN();
-		
 		int cross, zero, defaultValue;
+		char grid[][]=board.getGrid();
 		char state;
-		char grid[][] = board.getGrid();
 		
 		//Possibilities
-		ArrayList<char []> possibilities = new ArrayList<char[]>();
-		char possibility[] = new char[n];
-		//Row
-		for(int i=0;i<n;i++){
-			possibilities.add(grid[i]);
-		}
-
-		//column
-		for(int i=0;i<n;i++){
-			for(int j=0;j<n;j++){
-				possibility[j]=grid[j][i];
-				if(grid[j][i]==Board.cross)
-					features[1]++;
-				else if(grid[j][i]==Board.zero)
-					features[2]++;
-			}
-			possibilities.add(possibility);
-		}
-
-		//diagonal1
-		for(int i=0;i<n;i++){
-			possibility[i]=grid[i][i];
-		}
-		possibilities.add(possibility);
-
-		//diagonal2
-		for(int i=0;i<n;i++){
-			possibility[i]=grid[i][n-i-1];
-		}
-		possibilities.add(possibility);
+		ArrayList<char []> possibilities = this.game.getPossibilities(board);
 		
 		//Evaluate
-		for(int i=0;i<n;i++){
-			possibility = possibilities.get(i);
+		features[0]=1;
+		
+		for(int i=0;i<n;i++)
+			for(int j=0;j<n;j++){
+				state = grid[i][j];
+				if(state == Board.cross)
+					features[1]++;
+				else if(state == Board.zero)
+					features[2]++;
+			}
+		
+		for(char possibility[]:possibilities){
 			cross=zero=defaultValue=0;
 			
 			for(int j=0;j<n;j++){
@@ -155,36 +142,48 @@ public class Computer extends Player {
 				else
 					defaultValue++;
 			}
-            if( cross == n-1 )
+			if( cross == 2 && defaultValue == 1 )
                 features[3] += 1;
-            if( zero == n-1 )
+			if( zero == 2 && defaultValue == 1 )
                 features[4] += 1;
-            if( cross == n-1 && defaultValue == 1 )
+			if( cross == n )
                 features[5] += 1;
-            if( zero == n-1 && defaultValue == 1 )
+            if( zero == n )
                 features[6] += 1;
 		}
 		return features;
 	}
 	
-	private void updateWeights(Board board, double score){
-		int features[] = this.getFeatures(board);
-		double estimate = this.getScore(board);
-		for(int i=0;i<this.weight.length;i++){
-			weight[i] += this.u*features[i]*(score-estimate);
+	private void updateWeights(ArrayList<TrainPair> trainingData){
+		Log.d("----Updating Weights-------");
+		double Vestimate;
+		String output;
+		for( TrainPair tp : trainingData ){
+			Vestimate = this.getScore(tp.features);
+			
+			for(int i=0;i<7;i++){
+				weight[i] += this.u*tp.features[i]*(tp.Vtrain-Vestimate);
+			}
+			output = "Features:\t";
+			for(int i=0;i<tp.features.length;i++)
+				output += tp.features[i]+", ";
+			Log.d("Features:"+output);
+			Log.d("Vtrain:"+tp.Vtrain+" Vestimate:"+Vestimate);
 		}
-	}
-	
-	public String toString(){
-		String output = "--------Computer---------\n";
 		
-		output += "Win:\t"+this.winCount+"\n";
-		
-		output += "Weights:\t";
+		output = "Weights:\t";
 		for(int i=0;i<this.weight.length;i++)
 			output += this.weight[i]+", ";
-		
-		return output;
+		Log.d(output);
 	}
 	
+	private class TrainPair{
+		double Vtrain;
+		int features[];
+		
+		TrainPair( double Vtrain, int features[] ){
+			this.Vtrain = Vtrain;
+			this.features = features;
+		}
+	}
 }

@@ -3,6 +3,7 @@ package users;
 import java.util.Scanner;
 
 import util.Log;
+import environment.Board;
 import environment.Game;
 
 public class Human extends Player {
@@ -10,19 +11,20 @@ public class Human extends Player {
 	public Human(Game game, char move){
 		super(game,move);
 		this.in=new Scanner(System.in);
-		this.tag="You";
+		this.tag="Human";
 	}
 	
 	public void chooseMove(){
 		int i,j;
+		Board board = this.game.getBoard();
 		do{
 			Log.l("X:\t");
 			i = in.nextInt();
 			Log.l("Y:\t");
 			j = in.nextInt();
 		}
-		while(!this.game.moveAllowed(i, j));
-		this.game.move(tag, i, j, move);
+		while(!board.moveAllowed(i, j));
+		board.move(tag, i, j, move);
 	}
 
 }

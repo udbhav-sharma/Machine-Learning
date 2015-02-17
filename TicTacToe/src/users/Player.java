@@ -2,7 +2,9 @@ package users;
 import java.util.Random;
 
 import util.Log;
+import environment.Board;
 import environment.Game;
+import environment.Game.winner;
 
 
 public class Player {
@@ -23,27 +25,37 @@ public class Player {
 	
 	public void chooseMove(){
 		int i,j;
+		Board board = this.game.getBoard();
 		do{
-			i = rand.nextInt(game.getN());
-			j = rand.nextInt(game.getN());
-			if(game.moveAllowed(i, j)){
-				game.move(this.tag, i, j, this.move);
+			i = rand.nextInt(board.getN());
+			j = rand.nextInt(board.getN());
+			if(board.moveAllowed(i, j)){
+				board.move(this.tag, i, j, this.move);
 				break;
 			}
 		}
 		while(true);
 	}
 	
-	public void onGameCompletition(){
+	public void onGameCompletition(winner w){
 		Log.d(this.tag+" wins: "+this.winCount);
 	}
 	
 	public void reset(){	
+		this.winCount=0;
+	}
+	
+	public char getMove(){
+		return this.move;
+	}
+	
+	public String getTag(){
+		return this.tag;
 	}
 	
 	public String toString(){
-		String output = "--------Player---------\n";
-		output += "Win:\t"+this.winCount+"\n";
+		String output = "--------"+this.tag+"---------\n";
+		output += "Win:\t"+this.winCount;
 		return output;
 	}
 }

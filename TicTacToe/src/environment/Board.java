@@ -33,8 +33,16 @@ public class Board {
 		}
 	}
 	
+	private boolean isFree(int i,int j){
+		return this.grid[i][j]==Board.defaultValue;
+	}
+	
 	public void reset(){
 		this.formBoard();
+	}
+	
+	public void resetCell(int i, int j){
+		this.grid[i][j] = Board.defaultValue;
 	}
 	
 	public void move(String playerTag, int i, int j, char move){
@@ -47,16 +55,7 @@ public class Board {
 	}
 	
 	public boolean moveAllowed(int i, int j){
-		return (i>=this.N || i<0 || j>=this.N || j<0 || this.grid[i][j]!=Board.defaultValue)?false:true;
-	}
-	
-	public void hardMove(int i,int j, char move){
-		if(i>=this.N || i<0 || j>=this.N || j<0){
-			Log.e("Invalid move");
-		}
-		else{
-			this.grid[i][j]=move;
-		}
+		return (i>=this.N || i<0 || j>=this.N || j<0 || !isFree(i,j))?false:true;
 	}
 	
 	public char getState(int i, int j){
@@ -71,10 +70,10 @@ public class Board {
 		return this.grid;
 	}
 	
-	public boolean fill(){
+	public boolean isFill(){
 		for(int i=0;i<this.N;i++){
 			for(int j=0;j<this.N;j++){
-				if(this.grid[i][j]==Board.defaultValue)
+				if(isFree(i,j))
 					return false;
 			}
 		}
@@ -106,7 +105,6 @@ public class Board {
 	
 	public Board clone(){
 		Board cloneBoard = new Board(this.N);
-		cloneBoard.N=this.N;
 		for(int i=0;i<this.N;i++){
 			for(int j=0;j<this.N;j++){
 				cloneBoard.grid[i][j] = this.grid[i][j]; 

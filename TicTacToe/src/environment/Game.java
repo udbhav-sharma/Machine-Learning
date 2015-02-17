@@ -1,11 +1,17 @@
 package environment;
 
+import java.util.ArrayList;
+
+import users.Computer;
 import users.Player;
 import util.Log;
 
 public class Game {
 	
 	private Board board;
+	private Computer computer=null;
+	private Player player=null;
+	
 	public enum winner{
 		COMPUTER,PLAYER,DRAW,NOTCOMPLETED
 	}
@@ -21,121 +27,135 @@ public class Game {
 	public Board getBoard(){
 		return this.board;
 	}
-
-	public boolean moveAllowed(int i, int j){
-		return board.moveAllowed(i, j);
-	}
 	
-	public void move(String playerTag, int i, int j, char move){
-		board.move(playerTag, i, j, move);
-	}
-	
-	public void playN(Player computer, Player player,int N, boolean train){
+	public void playN(Computer computer, Player player, int N, boolean train){
+		this.computer=computer;
+		this.player=player;
+		
+		this.computer.reset();
+		this.player.reset();
+		
 		for(int i=0;i<N;i++){
-			if(!train){
-				Log.l("-------New Game------");
-			}
+			Log.d("---------New Game-------");
+			this.play(train);
 			this.board.reset();
-			//computer.reset();
-			//player.reset();
-			this.play(computer, player, train);
 		}
 	}
 	
-	public void play(Player computer, Player player, boolean train){
-		while(!this.complete()){
-			computer.chooseMove();
+	private void play(boolean train){
+	
+		while(!this.complete(this.board)){
 			if(!train)
-				Log.l(board);
-			if(this.complete())
+				Log.l(this.board);
+			this.computer.chooseMove();
+			
+			if(this.complete(this.board))
 				break;
-			player.chooseMove();
+			if(!train)
+				Log.l(this.board);
+			this.player.chooseMove();
 		}
-		if(!train){
-			winner w = this.getWinner(this.board);
-			if(w==Game.winner.COMPUTER){
-				Log.l("Computer wins");
-			}
-			else if(w==Game.winner.PLAYER){
-				Log.l("Player wins");
-			}
-			else if(w==Game.winner.DRAW){
-				Log.l("Match is draw");
-			}
+		if(!train)
+			Log.l(this.board);
+		
+		winner w = this.getWinner(this.board);
+		String winnerName="";
+		
+		if(w==Game.winner.COMPUTER){
+			this.computer.winCount++;
+			winnerName = computer.getTag();
 		}
-		computer.onGameCompletition();
-		player.onGameCompletition();
+		else if(w==Game.winner.PLAYER){
+			this.player.winCount++;
+			winnerName = player.getTag();
+		}
+		else if(w==Game.winner.DRAW){
+			winnerName = "Nobody";
+		}
+		
+		this.computer.onGameCompletition(w);
+		this.player.onGameCompletition(w);
+		
+		if(!train)
+			Log.l(winnerName+" wins");
 	}
 	
-	public int getN(){
-		return this.board.getN();
-	}
-	
-	public boolean complete(){
-		winner w =this.getWinner(this.board);
+	public boolean complete( Board board ){
+		winner w = this.getWinner(board);
 		if(w == winner.NOTCOMPLETED)
 			return false;
 		return true;
 	}
 	
 	public winner getWinner(Board board){
-		if(this.checkWinner(board,Board.cross))
+		if(this.checkWinner(board,this.computer.getMove()))
 			return winner.COMPUTER;
-		else if(this.checkWinner(board,Board.zero))
+		else if(this.checkWinner(board,this.player.getMove()))
 			return winner.PLAYER;
-		else if(board.fill())
+		else if(board.isFill())
 			return winner.DRAW;
 		return winner.NOTCOMPLETED;
 	}
 	
-	private boolean checkWinner(Board board,char move){
+	private boolean checkWinner( Board board, char move ){
 		int n = this.board.getN();
-		char grid[][] = board.getGrid();
 		int count;
-
-		//Checking for columns
-		for(int j=0;j<n;j++){
-			count=0;
-			for(int i=0;i<n;i++){
-				if(grid[i][j]==move){
-					count++;
-				}
-			}
-			if(count==n)
-				return true;
-		}
 		
-		//Checking for rows
-		for(int i=0;i<n;i++){
-			count=0;
+		ArrayList<char []> possibilities = this.getPossibilities(board);
+		Log.d("---------Possibilities--");
+		for(char possibility[] : possibilities){
+			count = 0;
+			String output="";
 			for(int j=0;j<n;j++){
-				if(grid[i][j]==move){
+				if(possibility[j]==move)
 					count++;
-				}
+				output+=possibility[j]+", ";
 			}
-			if(count==n)
+
+			Log.d(output);
+			if(count == n)
 				return true;
 		}
-		
-		//Checking Diagonal1
-		count=0;
-		for(int i=0;i<n;i++){
-			if(grid[i][i]==move){
-				count++;
-			}
-		}
-		if(count==n)
-			return true;
-		
-		//Checking Diagonal2
-		count=0;
-		for(int i=0;i<n;i++){
-			if(grid[i][n-i-1]==move){
-				count++;
-			}
-		}
-		if(count==n)
-			return true;
 		return false;
 	}
+	
+	public ArrayList<char []> getPossibilities(Board board){
+		char grid[][] =  board.getGrid();
+		int n = board.getN();
+		
+		ArrayList<char []> possibilities = new ArrayList<char[]>();
+		char possibility[] = null;
+		
+		//Row
+		possibility =  new char[n];
+		for(int i=0;i<n;i++){
+			possibilities.add(grid[i]);
+		}
+
+		//column
+		for(int j=0;j<n;j++){
+			possibility =  new char[n];
+			for(int i=0;i<n;i++){
+				possibility[i]=grid[i][j];
+			}
+			possibilities.add(possibility);
+		}
+
+		//diagonal1
+		possibility =  new char[n];
+		for(int i=0;i<n;i++){
+			possibility[i]=grid[i][i];
+		}
+		possibilities.add(possibility);
+
+		//diagonal2
+		possibility =  new char[n];
+		for(int i=0;i<n;i++){
+			possibility[i]=grid[i][n-i-1];
+		}
+		possibilities.add(possibility);
+		
+		return possibilities;
+	}
+	
 }
