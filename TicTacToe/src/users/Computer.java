@@ -13,7 +13,7 @@ public class Computer extends Player {
 	private final double winScore = 100;
 	private final double lostScore = -100;
 	private final double drawScore = 0;
-	private final double u = 0.01; 			//learning rate
+	private final double u = 0.1; 			//learning rate
 	private ArrayList<Board> history = null;
 	
 	public Computer(Game game, char move){
@@ -29,6 +29,9 @@ public class Computer extends Player {
 	}
 	
 	public void chooseMove() {
+
+		this.history.add(this.game.getBoard().clone());
+		
 		Board board= this.game.getBoard().clone();
 		int n = board.getN();
 		
@@ -51,26 +54,29 @@ public class Computer extends Player {
 			}
 		}
 		this.game.getBoard().move(this.tag, u, v, this.move);
-		this.history.add(this.game.getBoard().clone());
 	}
 	
 	public void onGameCompletition(winner w){
+		
+		this.history.add(this.game.getBoard().clone());
 		
 		//Reevaluate Weights
 		double Vtrain;
 		ArrayList<TrainPair> trainingData = new ArrayList<TrainPair>();
 		int i;
 		
-		for(i=0;i<this.history.size()-1;i++){
-			Vtrain = this.getScore(this.getFeatures(this.history.get(i+1)));
+		for(i=0;i<this.history.size();i++){
+			if( this.game.complete(history.get(i)) ){
+				Vtrain = this.getWinLostScore(w);
+			}
+			else{
+				Vtrain = this.getScore(this.getFeatures(this.history.get(i+1)));
+			}
 			trainingData.add(new TrainPair(Vtrain,this.getFeatures(history.get(i))));
 		}
 		
-		Vtrain = this.getWinLostScore(w);
-		trainingData.add(new TrainPair(Vtrain, this.getFeatures(history.get(i))));
-		
 		this.updateWeights(trainingData);
-		this.clearHistory();
+		//this.clearHistory();
 	}
 	
 	public String toString(){
@@ -121,15 +127,6 @@ public class Computer extends Player {
 		//Evaluate
 		features[0]=1;
 		
-		for(int i=0;i<n;i++)
-			for(int j=0;j<n;j++){
-				state = grid[i][j];
-				if(state == Board.cross)
-					features[1]++;
-				else if(state == Board.zero)
-					features[2]++;
-			}
-		
 		for(char possibility[]:possibilities){
 			cross=zero=defaultValue=0;
 			
@@ -142,14 +139,18 @@ public class Computer extends Player {
 				else
 					defaultValue++;
 			}
-			if( cross == 2 && defaultValue == 1 )
-                features[3] += 1;
-			if( zero == 2 && defaultValue == 1 )
-                features[4] += 1;
-			if( cross == n )
-                features[5] += 1;
-            if( zero == n )
-                features[6] += 1;
+			 if(cross == n-1 && defaultValue == 1)
+	                features[1] += 1;
+			 else if( zero == n-1 && defaultValue == 1)
+	                features[2] += 1;
+			 else if( cross == 1 && defaultValue == n-1)
+	                features[3] += 1;
+			 else if( zero == 1 && defaultValue == n-1)
+	                features[4] += 1;
+			 else if( cross == n )
+	                features[5] += 1;
+			 else if( zero == n )
+	                features[6] += 1;
 		}
 		return features;
 	}
