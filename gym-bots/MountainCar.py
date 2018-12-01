@@ -35,7 +35,7 @@ def train(env, MAX_ITER):
     gamma = 1.0
     min_alpha = 0.003
     initial_alpha = 1.0
-    eps = 0.02
+    eps = 0.1
 
     Q = {}
     for i_episode in range(MAX_ITER):
@@ -44,15 +44,18 @@ def train(env, MAX_ITER):
         total_reward = 0
 
         while True:
+            # env.render()
+
             s = get_state(env, observation)
 
             # Does not find the best path without this. Overfits
             if np.random.uniform(0,1) < eps:
                 action = np.random.choice(env.action_space.n)
             else:
-                logits = np.exp(get_qval(env, Q, s))
-                probs = logits/np.sum(logits)
-                action = np.random.choice(env.action_space.n, p=probs)
+                #logits = np.exp(get_qval(env, Q, s))
+                #probs = logits/np.sum(logits)
+                #action = np.random.choice(env.action_space.n, p=probs)
+                action = np.argmax(get_qval(env, Q, s))
 
             observation, r, done, _ = env.step(action)
             s_ = get_state(env, observation)
@@ -72,7 +75,7 @@ def main():
     env.seed(0)
     np.random.seed(0)
 
-    Q = train(env, 1500)
+    Q = train(env, 2600)
     play(env, Q)
 
 if __name__ == '__main__':
